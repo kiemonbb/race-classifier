@@ -1,23 +1,18 @@
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense
-from tensorflow.keras.layers import Dropout
-from tensorflow.keras.layers import GlobalAveragePooling2D
-from tensorflow.keras.applications.vgg16 import VGG16
+import torch.nn as nn
+from torchvision import models
 
 
-def build_vgg16(input_shape=(224, 224, 3)):
-    base_model = VGG16(weights="imagenet", include_top=False,
-                       input_shape=input_shape)
+def build_vgg16():
+    model = models.vgg16(weights="DEFAULT")
+    for param in model.parameters():
+        param.requires_grad = False
 
-    base_model.trainable = False
-
-    model = Sequential([
-        base_model,
-        GlobalAveragePooling2D(),
-        Dense(512, activation='relu'),
-        Dropout(0.5),
-        Dense(7, activation='softmax')
-    ])
-
-    model.summary()
+    model.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+    model.classifier = nn.Sequential(nn.Flatten(),
+                                     nn.Linear(512, 512),
+                                     nn.BatchNorm1d(512),
+                                     nn.ReLU(),
+                                     nn.Dropout(0.5),
+                                     nn.Linear(512, 7)
+                                     )
     return model

@@ -1,5 +1,7 @@
 model_name: vgg16
 image_size: [224, 224]
 batch_size: 32
-epochs: 10
+epochs: 5
+steps_per_epoch:
+steps_per_val:
 learning_rate: 0.0001
