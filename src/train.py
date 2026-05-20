@@ -30,7 +30,7 @@ def plot_training(history,  train_results_path):
     acc_jpg_path = os.path.join(train_results_path, "acc.jpg")
 
     plt.savefig(acc_jpg_path)
-    plt.show()
+    plt.clf()
 
     plt.plot(history['loss'])
     plt.plot(history['val_loss'])
@@ -42,7 +42,7 @@ def plot_training(history,  train_results_path):
     loss_jpg_path = os.path.join(train_results_path, "loss.jpg")
 
     plt.savefig(loss_jpg_path)
-    plt.show()
+    plt.clf()
 
 
 def main():
@@ -142,7 +142,7 @@ def main():
             torch.save(model.state_dict(), os.path.join(
                 train_results_path, "model.pth"))
 
-    plot_training(history, train_results_path)
+        plot_training(history, train_results_path)
 
 
 if __name__ == "__main__":
