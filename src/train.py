@@ -68,9 +68,14 @@ def main():
 
     train_loader, val_loader = get_loaders(image_size, batch_size)
 
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = optim.Adam([{'params': model.features.parameters(), 'lr': 1e-5},
+                           {'params': model.classifier.parameters(), 'lr': learning_rate}])
     criterion = nn.CrossEntropyLoss()
     best_val_accuracy = 0.0
+
+    best_val_loss = float("inf")
+    plateau_limit = 7
+    plateau_coutner = 0
 
     history = {"accuracy": [], "val_accuracy": [], "loss": [], "val_loss": []}
 
@@ -143,6 +148,17 @@ def main():
                 train_results_path, "model.pth"))
 
         plot_training(history, train_results_path)
+
+        # CHECK IF VAL_LOSS IS IMPROVING
+        if history["val_loss"][-1] < best_val_loss:
+            best_val_loss = history["val_loss"][-1]
+
+            plateau_counter = 0
+        else:
+            plateau_counter += 1
+        if plateau_counter >= plateau_limit:
+            print(f"Stopped at Epoch: {epoch} due to overfitting")
+            break
 
 
 if __name__ == "__main__":
