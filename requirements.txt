@@ -1,6 +1,7 @@
 --index-url https://download.pytorch.org/whl/rocm7.2
 torch
 torchvision
+torchsummary
 tqdm
 pyyaml
 numpy

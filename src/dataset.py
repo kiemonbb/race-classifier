@@ -50,8 +50,8 @@ def get_loaders(image_size=(224, 224), batch_size=32):
     val_dataset = ImageDataset(val_csv_path, images_dir, transform)
 
     train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True)
+        train_dataset, batch_size=batch_size, num_workers=4,  shuffle=True)
     val_loader = DataLoader(
-        val_dataset, batch_size=batch_size, shuffle=False)
+        val_dataset, batch_size=batch_size, num_workers=4,  shuffle=False)
 
     return train_loader, val_loader
