@@ -37,7 +37,17 @@ def get_loaders(image_size=(224, 224), batch_size=32):
     images_dir = os.path.abspath(os.path.join(
         current_dir, "..", "data"))
 
-    transform = transforms.Compose([
+    train_transform = transforms.Compose([
+        transforms.Resize(image_size),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomRotation(15),
+        transforms.ToTensor(),
+        transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225]
+        )
+    ])
+    val_transform = transforms.Compose([
         transforms.Resize(image_size),
         transforms.ToTensor(),
         transforms.Normalize(
@@ -46,8 +56,8 @@ def get_loaders(image_size=(224, 224), batch_size=32):
         )
     ])
 
-    train_dataset = ImageDataset(train_csv_path, images_dir, transform)
-    val_dataset = ImageDataset(val_csv_path, images_dir, transform)
+    train_dataset = ImageDataset(train_csv_path, images_dir, train_transform)
+    val_dataset = ImageDataset(val_csv_path, images_dir, val_transform)
 
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, num_workers=4,  shuffle=True)
