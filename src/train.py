@@ -56,26 +56,25 @@ def main():
     epochs = config["epochs"]
     steps_per_epoch = config["steps_per_epoch"]
     steps_per_val = config["steps_per_val"]
-    learning_rate = config["learning_rate"]
+    warmup_one = config["warmup_one"] if config["warmup_one"] is not None else 0
+    warmup_two = config["warmup_two"] if config["warmup_two"] is not None else 0
+    warmup_three = config["warmup_three"] if config["warmup_three"] is not None else 0
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = get_model(
-        model_name=model_name,
-    ).to(device)
-    summary(model, input_size=(3, 224, 224))
+    model_structure = get_model(model_name, epochs)
+    model_structure.model.to(device)
+    summary(model_structure.model, input_size=(3, 224, 224))
     print(f"Device: {device}")
 
     train_loader, val_loader = get_loaders(image_size, batch_size)
 
-    optimizer = optim.Adam([{'params': model.features.parameters(), 'lr': 1e-5},
-                           {'params': model.classifier.parameters(), 'lr': learning_rate}])
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
     best_val_accuracy = 0.0
 
     best_val_loss = float("inf")
-    plateau_limit = 7
-    plateau_coutner = 0
+    plateau_limit = 15
+    plateau_counter = 0
 
     history = {"accuracy": [], "val_accuracy": [], "loss": [], "val_loss": []}
 
@@ -87,20 +86,28 @@ def main():
     os.makedirs(train_results_path, exist_ok=True)
 
     for epoch in range(epochs):
-        model.train()
+        if epoch + 1 == warmup_one:
+            model_structure.unfreeze_last_block()
+        if epoch + 1 == warmup_two:
+            model_structure.unfreeze_penultimate_block()
+        if epoch + 1 == warmup_three:
+            model_structure.unfreeze_early_block()
+
+        model_structure.model.train()
         correct, total, running_loss = 0, 0, 0.0
         train_steps = steps_per_epoch if steps_per_epoch else len(train_loader)
         bar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{epochs} [TRAIN]",
                    total=train_steps)
-        for i, (inputs, labels) in enumerate(train_loader):
+        for i, (inputs, labels) in enumerate(bar):
             if steps_per_epoch and i >= steps_per_epoch:
                 break
             inputs, labels = inputs.to(device), labels.to(device)
-            optimizer.zero_grad()
-            outputs = model(inputs)
+            model_structure.optimizer.zero_grad()
+            outputs = model_structure.model(inputs)
             loss = criterion(outputs, labels)
             loss.backward()
-            optimizer.step()
+            model_structure.optimizer.step()
+            model_structure.scheduler.step()
             running_loss += loss.item()
             correct += (outputs.argmax(1) == labels).sum().item()
             total += labels.size(0)
@@ -111,17 +118,17 @@ def main():
             running_loss / train_steps)
         history["accuracy"].append(correct/total)
 
-        model.eval()
+        model_structure.model.eval()
         correct, total, running_loss = 0, 0, 0.0
         val_steps = steps_per_val if steps_per_val else len(val_loader)
         bar = tqdm(val_loader, desc=f"Epoch {epoch+1}/{epochs} [VALID]",
                    total=val_steps)
         with torch.no_grad():
-            for i, (inputs, labels) in enumerate(val_loader):
+            for i, (inputs, labels) in enumerate(bar):
                 if steps_per_val and i >= steps_per_val:
                     break
                 inputs, labels = inputs.to(device), labels.to(device)
-                outputs = model(inputs)
+                outputs = model_structure.model(inputs)
                 loss = criterion(outputs, labels)
                 running_loss += loss.item()
                 correct += (outputs.argmax(1) == labels).sum().item()
@@ -136,15 +143,15 @@ def main():
         # CHECKPOINT
         torch.save({
             "epoch": epoch,
-            "model_state": model.state_dict(),
-            "optimizer_state": optimizer.state_dict(),
+            "model_state": model_structure.model.state_dict(),
+            "optimizer_state": model_structure.optimizer.state_dict(),
             "history": history,
         }, os.path.join(train_results_path, "checkpoint.pth"))
 
         # BEST MODEL WEIGHTS
         if history["val_accuracy"][-1] > best_val_accuracy:
             best_val_accuracy = history["val_accuracy"][-1]
-            torch.save(model.state_dict(), os.path.join(
+            torch.save(model_structure.model.state_dict(), os.path.join(
                 train_results_path, "model.pth"))
 
         plot_training(history, train_results_path)
@@ -157,7 +164,7 @@ def main():
         else:
             plateau_counter += 1
         if plateau_counter >= plateau_limit:
-            print(f"Stopped at Epoch: {epoch} due to overfitting")
+            print(f"\nStopped at Epoch: {epoch} due to overfitting")
             break
 
 
