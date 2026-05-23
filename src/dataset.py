@@ -12,7 +12,9 @@ class ImageDataset(Dataset):
         self.images_dir = images_dir
         self.transform = transform
         self.classes = sorted(self.df["race"].unique().tolist())
+        # self.classes = ["Black", "White", "Other"]
         self.class_to_idx = {c: i for i, c in enumerate(self.classes)}
+        # self.class_to_idx = {'Black': 0, 'East Asian': 2, 'Indian': 2, 'Latino_Hispanic': 2, 'Middle Eastern': 2, 'Southeast Asian': 2, 'White': 1}
 
     def __len__(self):
         return len(self.df)
@@ -38,7 +40,8 @@ def get_loaders(image_size=(224, 224), batch_size=32):
         current_dir, "..", "data"))
 
     train_transform = transforms.Compose([
-        transforms.Resize(image_size),
+        transforms.Resize((256, 256)),
+        transforms.RandomResizedCrop(image_size, scale=(0.8, 1.0)),
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.RandomRotation(15),
         transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.2),

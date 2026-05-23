@@ -107,7 +107,7 @@ def main():
             loss = criterion(outputs, labels)
             loss.backward()
             model_structure.optimizer.step()
-            model_structure.scheduler.step()
+            model_structure.scheduler.step(epoch + i / train_steps)
             running_loss += loss.item()
             correct += (outputs.argmax(1) == labels).sum().item()
             total += labels.size(0)
@@ -145,27 +145,30 @@ def main():
             "epoch": epoch,
             "model_state": model_structure.model.state_dict(),
             "optimizer_state": model_structure.optimizer.state_dict(),
+            "scheduler_state": model_structure.scheduler.state_dict(),
             "history": history,
         }, os.path.join(train_results_path, "checkpoint.pth"))
-
-        # BEST MODEL WEIGHTS
-        if history["val_accuracy"][-1] > best_val_accuracy:
-            best_val_accuracy = history["val_accuracy"][-1]
-            torch.save(model_structure.model.state_dict(), os.path.join(
-                train_results_path, "model.pth"))
 
         plot_training(history, train_results_path)
 
         # CHECK IF VAL_LOSS IS IMPROVING
         if history["val_loss"][-1] < best_val_loss:
             best_val_loss = history["val_loss"][-1]
-
             plateau_counter = 0
+        elif history["val_accuracy"][-1] > best_val_accuracy:
+            plateau_counter = max(0, plateau_counter - 1)
         else:
             plateau_counter += 1
+
         if plateau_counter >= plateau_limit:
             print(f"\nStopped at Epoch: {epoch} due to overfitting")
             break
+
+        # BEST MODEL WEIGHTS
+        if history["val_accuracy"][-1] > best_val_accuracy:
+            best_val_accuracy = history["val_accuracy"][-1]
+            torch.save(model_structure.model.state_dict(), os.path.join(
+                train_results_path, "model.pth"))
 
 
 if __name__ == "__main__":

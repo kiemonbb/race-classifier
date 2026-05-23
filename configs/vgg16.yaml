@@ -6,4 +6,4 @@ steps_per_epoch:
 steps_per_val:
 warmup_one: 8
 warmup_two: 15
-warmup_three: 25
+warmup_three: 23

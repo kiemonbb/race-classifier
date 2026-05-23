@@ -1,5 +1,5 @@
 import torch.nn as nn
-from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torchvision import models
 from torch import optim
 from .model import Model
@@ -11,21 +11,25 @@ class VGG16(Model):
         for param in model.parameters():
             param.requires_grad = False
 
-        model.avgpool = nn.AdaptiveAvgPool2d((4, 4))
+        model.avgpool = nn.AdaptiveAvgPool2d((2, 2))
         model.classifier = nn.Sequential(nn.Flatten(),
-                                         nn.Dropout(0.4),
-                                         nn.Linear(8192, 512),
+                                         nn.Linear(2048, 512),
                                          nn.BatchNorm1d(512),
-                                         nn.Linear(512, 128),
                                          nn.ReLU(),
-                                         nn.Dropout(0.3),
-                                         nn.Linear(128, 7)
+                                         nn.Dropout(0.4),
+
+                                         nn.Linear(512, 256),
+                                         nn.BatchNorm1d(256),
+                                         nn.ReLU(),
+                                         nn.Dropout(0.2),
+                                         nn.Linear(256, 7)
                                          )
         self._model = model
         self._optimizer = optim.Adam(
             model.classifier.parameters(), lr=1e-3, weight_decay=1e-4)
-        self._scheduler = CosineAnnealingLR(
-            self._optimizer, T_max=epochs, eta_min=1e-6)
+        self._scheduler = CosineAnnealingWarmRestarts(
+            self._optimizer, T_0=10, T_mult=2, eta_min=1e-6
+        )
 
     @property
     def model(self):
