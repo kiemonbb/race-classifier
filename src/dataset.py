@@ -1,9 +1,26 @@
 import pandas as pd
+from sklearn.model_selection import train_test_split
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, Subset, DataLoader
 from torchvision import transforms
 import os
+from math import ceil, floor
 from PIL import Image
+
+
+class TransformSubset(Dataset):
+    def __init__(self, subset, transform=None):
+        self.subset = subset
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.subset)
+
+    def __getitem__(self, idx):
+        img, label = self.subset[idx]
+        if self.transform:
+            img = self.transform(img)
+        return img, label
 
 
 class ImageDataset(Dataset):
@@ -60,12 +77,29 @@ def get_loaders(image_size=(224, 224), batch_size=32):
         )
     ])
 
-    train_dataset = ImageDataset(train_csv_path, images_dir, train_transform)
+    train_test_dataset = ImageDataset(
+        train_csv_path, images_dir)
+
+    indices = list(range(len(train_test_dataset)))
+    labels = train_test_dataset.df["race"].tolist()
+
+    train_idx, test_idx = train_test_split(
+        indices,
+        test_size=0.17,
+        random_state=42,
+        stratify=labels
+    )
+    train_dataset = TransformSubset(
+        Subset(train_test_dataset, train_idx), train_transform)
+    test_dataset = TransformSubset(
+        Subset(train_test_dataset, test_idx), val_transform)
     val_dataset = ImageDataset(val_csv_path, images_dir, val_transform)
 
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, num_workers=4,  shuffle=True)
+    test_loader = DataLoader(
+        test_dataset, batch_size=batch_size, num_workers=4,  shuffle=False)
     val_loader = DataLoader(
         val_dataset, batch_size=batch_size, num_workers=4,  shuffle=False)
 
-    return train_loader, val_loader
+    return train_loader, val_loader, test_loader

@@ -67,7 +67,7 @@ def main():
     summary(model_structure.model, input_size=(3, 224, 224))
     print(f"Device: {device}")
 
-    train_loader, val_loader = get_loaders(image_size, batch_size)
+    train_loader, val_loader,test_loader= get_loaders(image_size, batch_size)
 
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
     best_val_accuracy = 0.0
