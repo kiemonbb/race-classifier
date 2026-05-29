@@ -1,7 +1,9 @@
 --index-url https://download.pytorch.org/whl/rocm7.2
+--extra-index-url https://pypi.org/simple
 torch
 torchvision
 torchsummary
+scikit-learn
 tqdm
 pyyaml
 numpy
