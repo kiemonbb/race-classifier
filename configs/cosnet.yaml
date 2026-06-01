@@ -1,0 +1,9 @@
+model_name: cosnet
+image_size: [224, 224]
+batch_size: 32
+epochs: 100
+steps_per_epoch:
+steps_per_val:
+warmup_one: 8
+warmup_two: 15
+warmup_three: 23

@@ -1,5 +1,6 @@
 from .vgg16 import VGG16
 from .resnet50 import ResNet50
+from .cosnet import CosNet
 
 
 def get_model(model_name, epochs):
@@ -7,5 +8,7 @@ def get_model(model_name, epochs):
         return VGG16(epochs)
     elif model_name == "resnet50":
         return ResNet50(epochs)
+    elif model_name == "cosnet":
+        return CosNet(epochs)
     else:
         raise ValueError("Unknown name")
