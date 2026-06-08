@@ -1,7 +1,7 @@
 model_name: resnet50
 image_size: [224, 224]
 batch_size: 32
-epochs: 25
+epochs: 150
 steps_per_epoch:
 steps_per_val:
 warmup_one: 4

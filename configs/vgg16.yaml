@@ -1,9 +1,9 @@
 model_name: vgg16
 image_size: [224, 224]
 batch_size: 32
-epochs: 100
+epochs: 140
 steps_per_epoch:
 steps_per_val:
-warmup_one: 8
+warmup_one: 7
 warmup_two: 15
-warmup_three: 23
+warmup_three: 24

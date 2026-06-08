@@ -2,7 +2,7 @@ from .model import Model
 import torch.nn as nn
 from torchvision import models
 from torchvision.models import ResNet50_Weights
-from torch.optim.lr_scheduler import OneCycleLR
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch import optim
 
 
@@ -14,19 +14,24 @@ class ResNet50(Model):
             param.requires_grad = False
 
         classifier_layers = model.fc.in_features
-        model.fc = nn.Sequential(nn.Dropout(0.4),
-                                 nn.Linear(classifier_layers, 512),
-                                 nn.BatchNorm1d(512),
-                                 nn.ReLU(),
-                                 nn.Dropout(0.2),
-                                 nn.Linear(512, 7)
-                                 )
+
+        model.fc = nn.Sequential(
+            nn.Dropout(0.6),
+            nn.Linear(2048, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Dropout(0.4),
+
+            nn.Linear(512, 128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(128, 7)
+        )
         self._model = model
 
         self._optimizer = optim.AdamW(
             model.fc.parameters(), lr=1e-3, weight_decay=3e-4)
-        self._scheduler = OneCycleLR(
-            self._optimizer, max_lr=1e-2, epochs=3, steps_per_epoch=2800)
+        self._scheduler = ReduceLROnPlateau(self._optimizer, patience=7)
 
     @property
     def model(self):
@@ -51,12 +56,7 @@ class ResNet50(Model):
         }
 
         self._optimizer.add_param_group(param_group)
-        self._scheduler = OneCycleLR(
-            self._optimizer,
-            max_lr=[1e-3, 1e-4],
-            epochs=3,
-            steps_per_epoch=2800,
-        )
+        self._scheduler.min_lrs.append(0)
 
     def unfreeze_penultimate_block(self):
         for param in self._model.layer3.parameters():
@@ -69,12 +69,8 @@ class ResNet50(Model):
         }
 
         self._optimizer.add_param_group(param_group)
-        self._scheduler = OneCycleLR(
-            self._optimizer,
-            max_lr=[1e-3, 1e-4, 5e-5],
-            epochs=19,
-            steps_per_epoch=2800,
-        )
+        self._scheduler.min_lrs.append(0)
+
         pass
 
     def unfreeze_early_block(self):

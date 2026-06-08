@@ -1,5 +1,5 @@
 import torch.nn as nn
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, ReduceLROnPlateau
 from torchvision import models
 from torch import optim
 from .model import Model
@@ -13,23 +13,21 @@ class VGG16(Model):
 
         model.avgpool = nn.AdaptiveAvgPool2d((2, 2))
         model.classifier = nn.Sequential(nn.Flatten(),
+                                         nn.Dropout(0.6),
                                          nn.Linear(2048, 512),
                                          nn.BatchNorm1d(512),
                                          nn.ReLU(),
                                          nn.Dropout(0.4),
 
-                                         nn.Linear(512, 256),
-                                         nn.BatchNorm1d(256),
+                                         nn.Linear(512, 128),
                                          nn.ReLU(),
-                                         nn.Dropout(0.2),
-                                         nn.Linear(256, 7)
+                                         nn.Dropout(0.3),
+                                         nn.Linear(128, 7)
                                          )
         self._model = model
-        self._optimizer = optim.Adam(
+        self._optimizer = optim.AdamW(
             model.classifier.parameters(), lr=1e-3, weight_decay=1e-4)
-        self._scheduler = CosineAnnealingWarmRestarts(
-            self._optimizer, T_0=10, T_mult=2, eta_min=1e-6
-        )
+        self._scheduler = ReduceLROnPlateau(self._optimizer, patience=7)
 
     @property
     def model(self):
@@ -54,7 +52,7 @@ class VGG16(Model):
         }
 
         self._optimizer.add_param_group(param_group)
-        self.scheduler.base_lrs.append(param_group['lr'])
+        self._scheduler.min_lrs.append(0)
 
     def unfreeze_penultimate_block(self):
         for param in self._model.features[-14:-7].parameters():
@@ -67,7 +65,7 @@ class VGG16(Model):
         }
 
         self._optimizer.add_param_group(param_group)
-        self.scheduler.base_lrs.append(param_group['lr'])
+        self._scheduler.min_lrs.append(0)
 
     def unfreeze_early_block(self):
         for param in self._model.features[-21:-14].parameters():
@@ -78,4 +76,4 @@ class VGG16(Model):
             'weight_decay': 1e-5
         }
         self._optimizer.add_param_group(param_group)
-        self.scheduler.base_lrs.append(param_group['lr'])
+        self._scheduler.min_lrs.append(0)
