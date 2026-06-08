@@ -67,7 +67,7 @@ def main():
     summary(model_structure.model, input_size=(3, 224, 224))
     print(f"Device: {device}")
 
-    train_loader, val_loader,test_loader= get_loaders(image_size, batch_size)
+    train_loader, val_loader, test_loader = get_loaders(image_size, batch_size)
 
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
     best_val_accuracy = 0.0
@@ -84,14 +84,31 @@ def main():
     train_results_path = os.path.abspath(os.path.join(
         current_dir, "..", "results", "train", run_name))
     os.makedirs(train_results_path, exist_ok=True)
+    block5_unfrozen = block4_unfrozen = block3_unfrozen = False
 
     for epoch in range(epochs):
-        if epoch + 1 == warmup_one:
+        if plateau_counter == 4 and not block5_unfrozen:
+            print(f"Unfreeze last block at epoch: {epoch+1}")
             model_structure.unfreeze_last_block()
-        if epoch + 1 == warmup_two:
+            block5_unfrozen = True
+            plateau_counter = 0
+        elif plateau_counter == 4 and not block4_unfrozen:
+            print(f"Unfreeze penultimate block at epoch: {epoch+1}")
             model_structure.unfreeze_penultimate_block()
-        if epoch + 1 == warmup_three:
+            block4_unfrozen = True
+            plateau_counter = 0
+        elif plateau_counter == 4 and not block3_unfrozen:
+            print(f"Unfreeze early block at epoch: {epoch + 1}")
             model_structure.unfreeze_early_block()
+            block3_unfrozen = True
+            plateau_counter = 0
+
+        # if epoch + 1 == warmup_one:
+        #    model_structure.unfreeze_last_block()
+        # if epoch + 1 == warmup_two:
+        #    model_structure.unfreeze_penultimate_block()
+        # if epoch + 1 == warmup_three:
+        #    model_structure.unfreeze_early_block()
 
         model_structure.model.train()
         correct, total, running_loss = 0, 0, 0.0
@@ -107,13 +124,11 @@ def main():
             loss = criterion(outputs, labels)
             loss.backward()
             model_structure.optimizer.step()
-            model_structure.scheduler.step(epoch + i / train_steps)
             running_loss += loss.item()
             correct += (outputs.argmax(1) == labels).sum().item()
             total += labels.size(0)
             bar.set_postfix(
                 loss=f"{running_loss/(i+1):.4f}", acc=f"{correct/total:.4f}", refresh=True)
-            bar.update(1)
         history["loss"].append(
             running_loss / train_steps)
         history["accuracy"].append(correct/total)
@@ -152,13 +167,17 @@ def main():
         plot_training(history, train_results_path)
 
         # CHECK IF VAL_LOSS IS IMPROVING
-        if history["val_loss"][-1] < best_val_loss:
-            best_val_loss = history["val_loss"][-1]
+
+        val_loss = history["val_loss"][-1]
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
             plateau_counter = 0
         elif history["val_accuracy"][-1] > best_val_accuracy:
             plateau_counter = max(0, plateau_counter - 1)
         else:
             plateau_counter += 1
+
+        model_structure.scheduler.step(val_loss)
 
         if plateau_counter >= plateau_limit:
             print(f"\nStopped at Epoch: {epoch} due to overfitting")

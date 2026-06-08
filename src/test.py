@@ -41,6 +41,7 @@ def test_model():
     model_structure = get_model(model_name, 0)
     state_dict = torch.load(weights_path, map_location=device)
     model_structure.model.load_state_dict(state_dict,)
+    model_structure.model.to(device)
 
     model_structure.model.eval()
 
